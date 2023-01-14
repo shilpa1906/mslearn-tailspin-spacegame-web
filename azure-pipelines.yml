@@ -4,31 +4,38 @@
 # https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
 
 trigger:
-- main
+- '*'
 
 pool:
-  vmImage: 'windows-latest'
+  vmImage: 'ubuntu-22.04'
 
 variables:
-  solution: '**/*.sln'
-  buildPlatform: 'Any CPU'
-  buildConfiguration: 'Release'
+  buildConfiguration:'Release'
 
 steps:
-- task: NuGetToolInstaller@1
-
-- task: NuGetCommand@2
+- task: UseDotNet@2
+  displayName: 'Use Dot Net SDK 7.X'
   inputs:
-    restoreSolution: '$(solution)'
+    packageType: sdk
+    version: '7.x'
 
-- task: VSBuild@1
+- task: Npm@1
+  displayName: 'Run npm install'
   inputs:
-    solution: '$(solution)'
-    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+    verbose: false
 
-- task: VSTest@2
+- script: './node_modules/.bin/node-sass Tailspin.SpaceGame.Web/wwwroot --output Tailspin.SpaceGame.Web/wwwroot'
+  displayName: 'Compile Sass Assets'
+
+- task: gulp@1
+  displayName: 'Run Gulp Tasks'
+
+- script: 'echo "$(Build.DefinitionName), $(Build.BuildID), $(Build.BuildNumber)" > buildinfo.txt'
+  displayName: 'Writing Build Information'  
+  workingDirectory: Tailspin.SpaceGame.Web/wwwroot        
+
+- task: DotNetCoreCLI@2
+  displayName: 'Restore Project Dependencies'
   inputs:
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+    command: 'restore'
+    projects: '**/*.csproj'
